@@ -10,7 +10,7 @@ create table food (
     name text not null,
     protein integer not null,
     carbohydrates integer not null,
-    fats integer not null,
+    fat integer not null,
     calories integer not null
 );
 
