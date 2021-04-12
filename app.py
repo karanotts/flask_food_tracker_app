@@ -34,17 +34,27 @@ def index():
         db.execute('insert into log_date (entry_date) values (?)', [database_date])
         db.commit()
     
-    cursor = db.execute('select entry_date from log_date order by entry_date desc')
+    cursor = db.execute('select log_date.entry_date, sum(food.protein) as protein, \
+                        sum(food.carbohydrates) as carbohydrates, sum(food.fat) as fat, \
+                        sum(food.calories) as calories from log_date join food_date on food_date.log_date_id \
+                        = log_date.id join food on food.id = food_date.food_id group by log_date.id \
+                        order by log_date.entry_date desc')
     results = cursor.fetchall()
 
-    pretty_results = []
+    date_results = []
     for r in results:
         single_date = {}
-        d = datetime.strptime(str(r['entry_date']), '%Y%m%d')
-        single_date['entry_date'] = datetime.strftime(d, '%B %d, %Y')
-        pretty_results.append(single_date)
 
-    return render_template('home.html', results=pretty_results)
+        single_date['entry_date'] = r['entry_date']
+        single_date['protein'] = r['protein']
+        single_date['carbohydrates'] = r['carbohydrates']
+        single_date['fat'] = r['fat']
+        single_date['calories'] = r['calories']
+        d = datetime.strptime(str(r['entry_date']), '%Y%m%d')
+        single_date['pretty_date'] = datetime.strftime(d, '%B %d, %Y')
+        date_results.append(single_date)
+
+    return render_template('home.html', results=date_results)
 
 
 @app.route('/view/<date>', methods=['GET', 'POST'])
@@ -52,14 +62,14 @@ def view(date):
     db = get_db()
     
     date_cursor = db.execute('select id, entry_date from log_date where entry_date = ?', [date])
-    date_result = date_cursor.fetchone()
+    date_results = date_cursor.fetchone()
 
     if request.method == 'POST':
         # return f"<h1>The food item added is #{request.form['food-select']}"
-        db.execute('insert into food_date (food_id, log_date_id) values (?, ?)', [request.form['food-select'], date_result['id']])
+        db.execute('insert into food_date (food_id, log_date_id) values (?, ?)', [request.form['food-select'], date_results['id']])
         db.commit()
 
-    d = datetime.strptime(str(date_result['entry_date']), '%Y%m%d')
+    d = datetime.strptime(str(date_results['entry_date']), '%Y%m%d')
     pretty_date = datetime.strftime(d, '%B %d, %Y')
     # return f"The date is {date_result['entry_date']}"
 
@@ -85,7 +95,7 @@ def view(date):
         totals['calories'] += food['calories']
 
 
-    return render_template('day.html', date=pretty_date, food_results=food_results, log_results=log_results, totals=totals)
+    return render_template('day.html', pretty_date=pretty_date, entry_date=date_results['entry_date'], food_results=food_results, log_results=log_results, totals=totals)
 
 
 @app.route('/food', methods=['GET', 'POST'])
